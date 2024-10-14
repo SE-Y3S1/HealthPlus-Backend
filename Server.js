@@ -9,7 +9,7 @@ require("dotenv").config();
  
 const MONGODB_URI = process.env.MONGODB_URI;
 
-const PatientRouter = require('../backend/routers/Patient.js')
+const PatientRouter = require('./routers/Patient.js')
 
 app.use('/patients',PatientRouter);
 
