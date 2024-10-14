@@ -27,11 +27,11 @@ router.get('/:id', async (req, res) => {
 
 // Create a new patient
 router.post('/', async (req, res) => {
-    const { name, address, dob, contactno, email, insuranceprovider, policyno, medicalinfos } = req.body;
+    const { name, address, dob, contactno, email, nic, insuranceprovider, policyno, medicalinfos } = req.body;
 
     // Optional: Validation check for required fields (can also be handled with middleware)
-    if (!name || !address || !dob || !contactno || !email || !insuranceprovider || !policyno || !medicalinfos) {
-        return res.status(400).json({ message: 'All fields are required' });
+    if (!name || !address || !dob || !contactno || !email || !nic ) {
+        return res.status(400).json({ message: 'Please fill all required fields' });
     }
 
     const patient = new Patient({
@@ -40,6 +40,7 @@ router.post('/', async (req, res) => {
         dob,
         contactno,
         email,
+        nic,
         insuranceprovider,
         policyno,
         medicalinfos
@@ -66,6 +67,7 @@ router.put('/:id', async (req, res) => {
         patient.address = req.body.address || patient.address;
         patient.dob = req.body.dob || patient.dob;
         patient.contactno = req.body.contactno || patient.contactno;
+        patient.nic = req.body.nic || patient.nic;
         patient.email = req.body.email || patient.email;
         patient.insuranceprovider = req.body.insuranceprovider || patient.insuranceprovider;
         patient.policyno = req.body.policyno || patient.policyno;

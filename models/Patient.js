@@ -28,17 +28,21 @@ const PatientSchema = new mongoose.Schema({
             message: props => `${props.value} is not a valid email!`
         }
     },
+    nic: {
+        type: String,  // Changed from Number to String
+        required: true
+    },
     insuranceprovider: {
         type: String,
-        required: true
+        required: false
     },
     policyno: {
         type: String,
-        required: true
+        required: false
     },
     medicalinfos: {
         type: String,
-        required: true
+        required: false
     }
 });
 
