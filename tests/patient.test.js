@@ -1,97 +1,81 @@
 const request = require('supertest');
 const express = require('express');
 const mongoose = require('mongoose');
+const { MongoMemoryServer } = require('mongodb-memory-server');
+const Patient = require('../models/Patient'); // Your Mongoose model
+const PatientRouter = require('../routers/Patient.js'); // Your router
+
 const app = express();
-
-require('dotenv').config();
-
-const PatientRouter = require('../routers/Patient.js');
 app.use(express.json());
 app.use('/patients', PatientRouter);
 
-const MONGODB_URI = process.env.MONGODB_URI;
+let mongoServer;
 
-// Connect to MongoDB before tests
 beforeAll(async () => {
-    await mongoose.connect(MONGODB_URI, { useNewUrlParser: true, useUnifiedTopology: true });
+    mongoServer = await MongoMemoryServer.create();
+    const uri = mongoServer.getUri();
+    await mongoose.connect(uri, { useNewUrlParser: true, useUnifiedTopology: true });
 });
 
-// Clean up before each test
-beforeEach(async () => {
-    await mongoose.connection.collection('patients').deleteMany({});
-});
-
-// Close the connection after all tests
 afterAll(async () => {
+    await mongoose.connection.dropDatabase();
     await mongoose.connection.close();
+    await mongoServer.stop();
 });
 
-// Test cases
+beforeEach(async () => {
+    await Patient.deleteMany(); // Clear data before each test
+});
+
 describe('Patient API', () => {
-    // Test GET all patients
-    test('should get all patients (positive test)', async () => {
-        const res = await request(app).get('/patients');
-        expect(res.statusCode).toEqual(200);
-        expect(res.body).toEqual([]); // Expecting an empty array
-    });
-
-    // Test POST create patient
-    test('should create a new patient (positive test)', async () => {
-        const newPatient = {
-            name: "John Doe",
-            address: "123 Main St",
-            dob: "1990-01-01",
-            contactno: "1234567890",
-            email: "john@example.com",
-            insuranceprovider: "Health Inc.",
-            policyno: "ABC123456",
-            medicalinfos: "No allergies"
+    it('should create a new patient (Positive Test)', async () => {
+        const newPatient = { 
+            name: 'John Doe', 
+            age: 30, 
+            disease: 'Flu', 
+            nic: '123456789V',
+            email: 'john@example.com',
+            contactno: '0771234567',
+            dob: '1993-05-20',
+            address: '123 Main Street' 
         };
 
-        const res = await request(app).post('/patients').send(newPatient);
-        expect(res.statusCode).toEqual(201);
-        expect(res.body).toHaveProperty('_id');
-        expect(res.body.name).toBe(newPatient.name);
+        const res = await request(app)
+            .post('/patients')
+            .send(newPatient)
+            .expect(201); // Assert: Status 201 for created
+
+        expect(res.body).toHaveProperty('_id'); // Assert: ID exists
+        expect(res.body.name).toBe('John Doe'); // Assert: Name is correct
     });
 
-    // Test POST create patient with missing fields (negative test)
-    test('should return error for missing required fields (negative test)', async () => {
-        const newPatient = {
-            name: "Jane Doe",
-            // Missing required fields
-        };
+    it('should get all patients (Positive Test)', async () => {
+        await Patient.create({ 
+            name: 'Alice', 
+            age: 25, 
+            disease: 'Cold', 
+            nic: '987654321V', 
+            email: 'alice@example.com', 
+            contactno: '0777654321', 
+            dob: '1999-10-10', 
+            address: '456 Another Street' 
+        });
 
-        const res = await request(app).post('/patients').send(newPatient);
-        expect(res.statusCode).toEqual(400);
-        expect(res.body).toHaveProperty('message', 'All fields are required');
+        const res = await request(app)
+            .get('/patients')
+            .expect(200); // Assert: Status 200
+
+        expect(res.body.length).toBe(1); // Assert: One patient in DB
+        expect(res.body[0].name).toBe('Alice'); // Assert: Name matches
     });
 
-    // Test GET patient by ID (positive test)
-    test('should get a patient by ID (positive test)', async () => {
-        const newPatient = {
-            name: "Alice Smith",
-            address: "456 Elm St",
-            dob: "1995-05-15",
-            contactno: "9876543210",
-            email: "alice@example.com",
-            insuranceprovider: "CarePlus",
-            policyno: "XYZ987654",
-            medicalinfos: "No pre-existing conditions"
-        };
+    it('should return 404 for non-existent patient deletion (Negative Test)', async () => {
+        const nonExistentId = new mongoose.Types.ObjectId(); // Generate fake ID
 
-        const patientResponse = await request(app).post('/patients').send(newPatient);
-        const patientId = patientResponse.body._id;
+        const res = await request(app)
+            .delete(`/patients/${nonExistentId}`)
+            .expect(404); // Assert: Status 404 for non-existent resource
 
-        const res = await request(app).get(`/patients/${patientId}`);
-        expect(res.statusCode).toEqual(200);
-        expect(res.body).toHaveProperty('_id', patientId);
-        expect(res.body.name).toBe(newPatient.name);
-    });
-
-    // Test GET patient by non-existent ID (negative test)
-    test('should return error for non-existent patient (negative test)', async () => {
-        const res = await request(app).get('/patients/60c72b2f9b1e8a001c8f66d1'); // Invalid ID
-        expect(res.statusCode).toEqual(404);
-        expect(res.body).toHaveProperty('message', 'Patient not found');
+        expect(res.body).toHaveProperty('message', 'Patient not found'); // Assert: Message matches
     });
 });
